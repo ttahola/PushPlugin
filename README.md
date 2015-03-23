@@ -1,4 +1,4 @@
-# Cordova Push Notifications Plugin for Android, iOS, WP8, Windows8, BlackBerry 10 and Amazon Fire OS
+# Cordova Push Notifications Plugin for Android, iOS, WP8.1 and later, Windows8, BlackBerry 10 and Amazon Fire OS
 
 ## DESCRIPTION
 
@@ -7,7 +7,7 @@ This plugin is for use with [Cordova](http://incubator.apache.org/cordova/), and
 * The Android implementation uses [Google's GCM (Google Cloud Messaging) service](http://developer.android.com/guide/google/gcm/index.html).
 * The BlackBerry 10 version  uses [blackberry push service](https://developer.blackberry.com/devzone/develop/platform_services/push_service_overview.html).
 * The iOS version is based on [Apple APNS Notifications](http://developer.apple.com/library/mac/#documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/ApplePushService/ApplePushService.html).
-* The WP8 implementation is based on [MPNS](http://msdn.microsoft.com/en-us/library/windowsphone/develop/ff402558(v=vs.105).aspx).
+* The WP8.1 implementation is based on [WNS](https://msdn.microsoft.com/en-us/library/windows/apps/hh913756.aspx).
 * Windows8 uses [Microsoft WNS Notifications](http://msdn.microsoft.com/en-us/library/windows/apps/hh913756.aspx).
 
 **Important** - Push notifications are intended for real devices. They are not tested for WP8 Emulator. The registration process will fail on the iOS simulator. Notifications can be made to work on the Android Emulator, however doing so requires installation of some helper libraries, as outlined [here,](http://www.androidhive.info/2012/10/android-push-notifications-using-google-cloud-messaging-gcm-php-and-mysql/) under the section titled "Installing helper libraries and setting up the Emulator".
@@ -214,7 +214,7 @@ Add the `PushNotification.js` script to your assets/www folder (or javascripts f
 <script type="text/javascript" charset="utf-8" src="PushNotification.js"></script>
 ```
 
-### Manual Installation for WP8
+### Manual Installation for WP8.1 and later
 
 Copy the following files to your project's Commands folder and add it to the VS project:
 
@@ -241,7 +241,7 @@ Do not forget to reference the `cordova.js` as well.
 
 In your Visual Studio project add reference to the `Newtonsoft.Json.dll` as well - it is needed for serialization and deserialization of the objects.
 
-Also you need to enable the **"ID_CAP_PUSH_NOTIFICATION"** capability in **Properties->WMAppManifest.xml** of your project.
+To receive toast notifications additional [toastCapable=’true’](http://msdn.microsoft.com/en-us/library/windows/apps/hh781238.aspx) attribute is required to be manually added in manifest file.
 
 ### Manual Installation for Windows8
 
@@ -262,7 +262,7 @@ To receive toast notifications additional [toastCapable=’true’](http://msdn.
 
 Below are the methods for installing this plugin automatically using command line tools. For additional info, take a look at the [Plugman Documentation](https://github.com/apache/cordova-plugman/blob/master/README.md) and [Cordova Plugin Specification](https://github.com/alunny/cordova-plugin-spec).
 
-**Note:** For each service supported - ADM, APNS, GCM or MPNS - you may need to download the SDK and other support files. See the [Manual Installation](#manual_installation) instructions below for more details about each platform.
+**Note:** For each service supported - ADM, APNS, GCM or WNS - you may need to download the SDK and other support files. See the [Manual Installation](#manual_installation) instructions below for more details about each platform.
 
 ### Cordova
 
@@ -538,52 +538,52 @@ pushNotification.unregister(successHandler, errorHandler, options);
 
 #### register (WP8 Only)
 
+**Note**. To be able to receive toast notifications additional [toastCapable=’true’](http://msdn.microsoft.com/en-us/library/windows/apps/hh781238.aspx) attribute is required in manifest file.
+
 ```js
 
 if(device.platform == "Win32NT"){
     pushNotification.register(
-        channelHandler,
-        errorHandler,
+        function (channelUri) {
+            $log.debug("registering wp device success: " + channelUri);
+            // Note: now you need to set the channelUri as a token to your push service
+        },
+        function (error) {
+            $log.error("cannot receive notifications, registering wp device failed: " + error);
+        },
         {
-            "channelName": channelName,
             "ecb": "onNotificationWP8",
-            "uccb": "channelHandler",
             "errcb": "jsonErrorHandler"
         });
 }
 
 ```
 
-#### channelHandler (WP8 only)
-Called after a push notification channel is opened and push notification URI is returned. [The application is now set to receive notifications.](http://msdn.microsoft.com/en-us/library/windowsphone/develop/hh202940(v=vs.105).aspx)
-
-
 #### ecb (WP8 Only)
 Event callback that gets called when your device receives a notification. This is fired if the app is running when you receive the toast notification, or raw notification.
 
 ```js
-//handle MPNS notifications for WP8
-function onNotificationWP8(e) {
+//handle WNS notifications for WP8
+function onNotificationWP8(event) {
 
-	if (e.type == "toast" && e.jsonContent) {
-		pushNotification.showToastNotification(successHandler, errorHandler,
-		{
-			"Title": e.jsonContent["wp:Text1"], "Subtitle": e.jsonContent["wp:Text2"], "NavigationUri": e.jsonContent["wp:Param"]
-		});
-		}
-
-	if (e.type == "raw" && e.jsonContent) {
-		alert(e.jsonContent.Body);
-	}
+    switch (event.type) {
+        case "toast":
+            alert(event.jsonContent.innerText);
+            break;
+        case "tile":
+            alert(event.jsonContent.innerText);
+            break;
+        case "raw":
+            alert(event.jsonContent.innerText);
+            break;
+        default:
+            alert("Unkonwn push message type: " + event.type);
+    }
 }
 ```
 
-#### uccb (WP8 only)
-Event callback that gets called when the channel you have opened gets its Uri updated. This function is needed in case the MPNS updates the opened channel Uri. This function will take care of showing updated Uri.
-
-
 #### errcb (WP8 only)
-Event callback that gets called when server error occurs when receiving notification from the MPNS server (for example invalid format of the notification).
+Event callback that gets called when server error occurs when receiving notification from the WNS server (for example invalid format of the notification).
 
 ```js
 function jsonErrorHandler(error) {
@@ -592,47 +592,11 @@ function jsonErrorHandler(error) {
 	}
 ```
 
-#### showToastNotification (WP8 only)
-Show toast notification if app is deactivated.
-
-    pushNotification.showToastNotification(successCallback, errorCallback, options);
-
-The toast notification's properties are set explicitly using json. They can be get in onNotificationWP8 and used for whatever purposes needed.
-
-
-To control the launch page when the user taps on your toast notification when the app is not running, add the following code to your mainpage.xaml.cs
-```cs
-protected override void OnNavigatedTo(System.Windows.Navigation.NavigationEventArgs e)
-{
-    base.OnNavigatedTo(e);
-    try
-    {
-        if (this.NavigationContext.QueryString["NavigatedFrom"] == "toast") // this is set on the server
-        {
-            this.PGView.StartPageUri = new Uri("//www/index.html#notification-page", UriKind.Relative);
-        }
-    }
-    catch (KeyNotFoundException)
-    {
-    }
-}
-```
-Or you can add another `Page2.xaml` just for testing toast navigate url. Like the [MSDN Toast Sample](http://msdn.microsoft.com/en-us/library/windowsphone/develop/hh202967(v=vs.105).aspx)
-
-To test the tile notification, you will need to add tile images like the [MSDN Tile Sample](http://msdn.microsoft.com/en-us/library/windowsphone/develop/hh202970(v=vs.105).aspx#BKMK_CreatingaPushClienttoReceiveTileNotifications)
-
 #### unregister (WP8 Only)
 
-When using the plugin for wp8 you will need to unregister the push channel you have register in case you would want to open another one. You need to know the name of the channel you have opened in order to close it. Please keep in mind that one application can have only one opened channel at time and in order to open another you will have to close any already opened channel.
-
-```cs
+```js
 function unregister() {
-	var channelName = $("#channel-btn").val();
-	pushNotification.unregister(
-		successHandler, errorHandler,
-			{
-				"channelName": channelName
-			});
+	pushNotification.unregister(successHandler, errorHandler);
 }
 ```
 
@@ -701,10 +665,10 @@ See [Sending push notifications with WNS](http://msdn.microsoft.com/en-us/librar
 The notification system consists of several interdependent components.
 
 1. The client application which runs on a device and receives notifications.
-2. The notification service provider (ADM for Amazon Fire OS, APNS for Apple, GCM for Google, MPNS for WP8)
-3. Intermediary servers that collect device IDs from clients and push notifications through ADM, APNS GCM or MPNS.
+2. The notification service provider (ADM for Amazon Fire OS, APNS for Apple, GCM for Google, WNS for WP8)
+3. Intermediary servers that collect device IDs from clients and push notifications through ADM, APNS GCM or WNS.
 
-This plugin and its target Cordova application comprise the client application.The ADM, APNS, GCM and MPNS infrastructure are maintained by Amazon, Apple, Google and Microsoft, respectively. In order to send push notifications to your users, you would typically run an intermediary server or employ a 3rd party push service. This is true for all ADM (Amazon), APNS (iOS), GCM (Android) and MPNS (WP8) notifications. However, when testing the notification client applications, it may be desirable to be able to push notifications directly from your desktop, without having to design and build those server's first. There are a number of solutions out there to allow you to push from a desktop machine, sans server.
+This plugin and its target Cordova application comprise the client application.The ADM, APNS, GCM and WNS infrastructure are maintained by Amazon, Apple, Google and Microsoft, respectively. In order to send push notifications to your users, you would typically run an intermediary server or employ a 3rd party push service. This is true for all ADM (Amazon), APNS (iOS), GCM (Android) and WNS (WP8) notifications. However, when testing the notification client applications, it may be desirable to be able to push notifications directly from your desktop, without having to design and build those server's first. There are a number of solutions out there to allow you to push from a desktop machine, sans server.
 
 ### Testing APNS and GCM notifications
 
@@ -764,14 +728,8 @@ While the data model for iOS is somewhat fixed, it should be noted that GCM is f
 5. To send a test push notification, run the test script via a command line using NodeJS: `$ node pushADM.js`.
 
 
-### Testing MPNS Notification for WP8
-The simplest way to test the plugin is to create an ASP.NET webpage that sends different notifications by using the URI that is returned when the push channel is created on the device.
-
-You can see how to create one from MSDN Samples:
-
-- [Send Toast Notifications (MSDN Sample)](http://msdn.microsoft.com/en-us/library/windowsphone/develop/hh202967(v=vs.105).aspx#BKMK_SendingaToastNotification)
-- [Send Tile Notification (MSDN Sample)](http://msdn.microsoft.com/en-us/library/windowsphone/develop/hh202970(v=vs.105).aspx#BKMK_SendingaTileNotification)
-- [Send Raw Notification (MSDN Sample)](http://msdn.microsoft.com/en-us/library/windowsphone/develop/hh202977(v=vs.105).aspx#BKMK_RunningtheRawNotificationSample)
+### Testing WNS Notification for WP8
+- [Sending a Push Notification (XAML)](https://msdn.microsoft.com/en-us/library/windows/apps/xaml/Hh868252(v=win.10).aspx)
 
 
 ### Sending push notifications on BlackBerry10
