@@ -20,7 +20,6 @@ namespace WPCordovaClassLib.Cordova.Commands
 
         public void register(string options)
         {
-            Debug.WriteLine("PushPlugin.register");
             if (!TryDeserializeOptions(options, out this.pushOptions))
             {
                 Debug.WriteLine("PushPlugin.register: deserialize error.");
@@ -28,25 +27,17 @@ namespace WPCordovaClassLib.Cordova.Commands
                 return;
             }
 
-            Debug.WriteLine("PushPlugin.register: create push notification channel.");
-
             IAsyncOperation<PushNotificationChannel> channelTask = null;
             if (this.pushOptions.AppName == null)
             {
-                Debug.WriteLine("PushPlugin.register: No app name specified.");
                 channelTask = Windows.Networking.PushNotifications.PushNotificationChannelManager.CreatePushNotificationChannelForApplicationAsync();
             }
             else
             {
-                Debug.WriteLine("PushPlugin.register: app name set to:" + this.pushOptions.AppName);
                 channelTask = Windows.Networking.PushNotifications.PushNotificationChannelManager.CreatePushNotificationChannelForApplicationAsync(this.pushOptions.AppName);
             }
-            Debug.WriteLine("PushPlugin.register: task created");
             pushNotificationChannel = channelTask.AsTask().Result;
-            Debug.WriteLine("PushPlugin.register: push notification channel uri: " + pushNotificationChannel.Uri);
-
             pushNotificationChannel.PushNotificationReceived += OnPushNotificationReceived;
-            Debug.WriteLine("PushPlugin.register: event handler added");
 
             this.DispatchCommandResult(new PluginResult(PluginResult.Status.OK, pushNotificationChannel.Uri));
         }
@@ -66,49 +57,37 @@ namespace WPCordovaClassLib.Cordova.Commands
 
         void OnPushNotificationReceived(PushNotificationChannel sender, PushNotificationReceivedEventArgs e)
         {
-            Debug.WriteLine("PushPlugin.OnPushNotificationReceived: " + e.NotificationType);
-
             var pushNotification = new PushNotification();
             switch (e.NotificationType)
             {
                 case PushNotificationType.Badge:
-                    Debug.WriteLine("PushPlugin.OnPushNotificationReceived Badge notification");
                     pushNotification.Type = "badge";
                     pushNotification.JsonContent.Add("innerText", e.BadgeNotification.Content.InnerText);
                     break;
                 case PushNotificationType.Tile:
-                    Debug.WriteLine("PushPlugin.OnPushNotificationReceived Tile notification");
                     pushNotification.Type = "tile";
                     pushNotification.JsonContent.Add("innerText", e.TileNotification.Content.InnerText);
                     break;
                 case PushNotificationType.Toast:
-                    Debug.WriteLine("PushPlugin.OnPushNotificationReceived Toast notification");
                     pushNotification.Type = "toast";
                     pushNotification.JsonContent.Add("innerText", e.ToastNotification.Content.InnerText);
                     break;
                 default:
                     // Do nothing
-                    Debug.WriteLine("PushPlugin.OnPushNotificationReceived Unknown notification type");
                     return;
             }
-            Debug.WriteLine("PushPlugin.OnPushNotificationReceived type set");
 
             if (this.pushOptions.NotificationCallback != null)
             {
-                Debug.WriteLine("PushPlugin.OnPushNotificationReceived - executing callback");
                 this.ExecuteCallback(this.pushOptions.NotificationCallback, JsonConvert.SerializeObject(pushNotification));
-                Debug.WriteLine("PushPlugin.OnPushNotificationReceived - callback done");
 
                 // prevent the notification from being delivered to the UI, expecting the application to show it
                 e.Cancel = true;
-                Debug.WriteLine("PushPlugin.OnPushNotificationReceived - event canceled");
             }
             else
             {
                 TryExecuteErrorCallback("PushPlugin.OnPushNotificationReceived: No push event callback defined");
             }
-
-            Debug.WriteLine("PushPlugin.OnPushNotificationReceived - done");
         }
 
         void ExecuteCallback(string callback, string callbackResult, bool escalateError = true)

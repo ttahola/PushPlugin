@@ -141,22 +141,14 @@
 
     <!-- wp8 -->
     <platform name="wp8">
-
     <config-file target="config.xml" parent="/*">
       <feature name="PushPlugin">
         <param name="wp-package" value="PushPlugin"/>
       </feature>
     </config-file>
-
-    <config-file target="Properties/WMAppManifest.xml" parent="/Deployment/App/Capabilities">
-      <!-- TODO: check the required capabilities for WNS -->
-      <Capability Name="ID_CAP_PUSH_NOTIFICATION"/>
-    </config-file>
-
     <source-file src="src/wp8/PushPlugin.cs" />
     <framework src="src/wp8/Newtonsoft.Json.dll" custom="true" />
-
-  </platform>
+    </platform>
 
   <!-- windows8 -->
   <platform name="windows8">
